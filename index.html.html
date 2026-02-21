@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>БК: Наследие — Сетевая Битва</title>
+    <!-- Библиотеки для сети и QR -->
+    <script src="https://unpkg.com"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
+    <style>
+        body { font-family: 'Courier New', monospace; background: #1a1a1a; color: #ccc; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .screen { display: none; width: 100%; max-width: 500px; border: 2px solid #444; padding: 20px; background: #222; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .active { display: block; }
+        .stat-row { margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+        #game-log { height: 180px; border: 1px solid #555; overflow-y: auto; background: #000; padding: 10px; margin: 15px 0; font-size: 13px; color: #aaa; }
+        button { cursor: pointer; padding: 8px 12px; background: #333; color: #fff; border: 1px solid #555; margin-bottom: 5px; transition: 0.2s; }
+        button:hover:not(:disabled) { background: #555; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .location-btn { width: 100%; text-align: left; }
+        #char-stats-display { background: #2a2a2a; padding: 10px; border-radius: 4px; margin-top: 15px; font-size: 0.85em; border-left: 4px solid #4a2; line-height: 1.4; }
+        .item-card { border-bottom: 1px solid #444; padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        #qrcode-container { background:#fff; padding:10px; margin:10px auto; width:200px; height:200px; }
+        input { background: #000; color: #4a2; border: 1px solid #444; padding: 8px; width: calc(100% - 20px); margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- ЭКРАН СОЗДАНИЯ -->
+    <div id="char-creation" class="screen active">
+        <h2>⚔️ Новый Герой</h2>
+        <input type="text" id="player-name-input" placeholder="Имя героя..." maxlength="12">
+        <select id="player-class-select" style="width:100%; padding:8px; background:#000; color:#fff; margin-bottom:10px;">
+            <option value="warrior">Воин (+HP, Тяжелое)</option>
+            <option value="rogue">Разбойник (Ловкость)</option>
+            <option value="lucky">Охотник (Удача)</option>
+        </select>
+        <p>Свободные очки: <b id="free-points">25</b></p>
+        <div class="stat-row">Сила: <span id="str">0</span> <button onclick="addStat('str')">+</button></div>
+        <div class="stat-row">Ловкость: <span id="dex">0</span> <button onclick="addStat('dex')">+</button></div>
+        <div class="stat-row">Удача: <span id="luk">0</span> <button onclick="addStat('luk')">+</button></div>
+        <button style="width:100%" onclick="startGame()">НАЧАТЬ ПУТЬ</button>
+    </div>
+
+    <!-- ГОРОД -->
+    <div id="city-screen" class="screen">
+        <h2>🏰 Город</h2>
+        <button class="location-btn" onclick="showScreen('map-screen')">🗺️ Карта Мира (PvE)</button>
+        <button class="location-btn" onclick="initMultiplayer()">🌐 Сетевая игра (PvP)</button>
+        <button class="location-btn" onclick="showScreen('stats-screen')">👤 Инвентарь / Прокачка</button>
+        <button class="location-btn" onclick="openShop()">💰 Лавка торговца</button>
+        <div id="char-stats-display"></div>
+        <button onclick="resetSave()" style="color:red; font-size:10px; margin-top:20px; border:none; background:none;">Сброс данных</button>
+    </div>
+
+    <!-- СЕТЕВАЯ ИГРА -->
+    <div id="multiplayer-screen" class="screen">
+        <h2>🌐 Сетевой режим</h2>
+        <p id="peer-status">Генерация ID...</p>
+        <div id="qrcode-container"><canvas id="qrcode"></canvas></div>
+        <div id="join-section">
+            <input type="text" id="join-id" placeholder="ID противника">
+            <button onclick="joinGame()" style="width:100%">Подключиться по ID</button>
+        </div>
+        <button style="width:100%; margin-top:10px;" onclick="showScreen('city-screen')">Назад</button>
+    </div>
+
+    <!-- МАГАЗИН -->
+    <div id="shop-screen" class="screen">
+        <h2>💰 Лавка торговца</h2>
+        <p>Золото: <b id="player-gold">0</b></p>
+        <div id="shop-items-list" style="height: 300px; overflow-y: auto;"></div>
+        <button style="width:100%" onclick="showScreen('city-screen')">Назад</button>
+    </div>
+
+    <!-- ПРОКАЧКА -->
+    <div id="stats-screen" class="screen">
+        <h2>📜 Герой</h2>
+        <p>Свободно очков: <b id="curr-free-points">0</b></p>
+        <div class="stat-row">Сила: <span id="curr-str">0</span> <button onclick="addStat('str')">+</button></div>
+        <div class="stat-row">Ловкость: <span id="curr-dex">0</span> <button onclick="addStat('dex')">+</button></div>
+        <div class="stat-row">Удача: <span id="curr-luk">0</span> <button onclick="addStat('luk')">+</button></div>
+        <button style="width:100%" onclick="saveGame(); showScreen('city-screen')">В город</button>
+    </div>
+
+    <!-- КАРТА -->
+    <div id="map-screen" class="screen">
+        <h2>🗺️ Карта</h2>
+        <button class="location-btn" onclick="startBattle('Лес', 1)">🌲 Лес (Легко)</button>
+        <button class="location-btn" onclick="startBattle('Кладбище', 3)">🪦 Кладбище (Средне)</button>
+        <button class="location-btn" onclick="startBattle('Замок', 7)">🏰 Замок (Сложно)</button>
+        <button style="width:100%" onclick="showScreen('city-screen')">Назад</button>
+    </div>
+
+    <!-- БОЙ -->
+    <div id="combat-screen" class="screen">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-weight:bold;">
+            <div id="p-hp-ui" style="color:#4a2;">Вы: 100</div>
+            <div id="e-hp-ui" style="color:#ff4d4d;">Враг: 100</div>
+        </div>
+        <div id="game-log"></div>
+        <div id="combat-controls">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
+                <button class="atk-z" onclick="setZone('attack','Голова', this)">Ат:Голова</button>
+                <button class="atk-z" onclick="setZone('attack','Корпус', this)">Ат:Корпус</button>
+                <button class="atk-z" onclick="setZone('attack','Ноги', this)">Ат:Ноги</button>
+                <button class="blk-z" onclick="setZone('block','Голова', this)">Зщ:Голова</button>
+                <button class="blk-z" onclick="setZone('block','Корпус', this)">Зщ:Корпус</button>
+                <button class="blk-z" onclick="setZone('block','Ноги', this)">Зщ:Ноги</button>
+            </div>
+            <button id="turn-btn" disabled style="width:100%; background:#4a2; margin-top:10px; font-weight:bold;" onclick="confirmTurn()">ПОДТВЕРДИТЬ ХОД</button>
+        </div>
+    </div>
+
+<script>
+// --- ДАННЫЕ ---
+const items = {
+    weapon: [
+        { id:'w1', name:'Топор', cost:50, str:4 }, { id:'w2', name:'Молот', cost:150, str:10 }, { id:'w3', name:'Меч Тьмы', cost:400, str:25 },
+        { id:'s1', name:'Нож', cost:50, dex:4 }, { id:'s2', name:'Кинжалы', cost:150, dex:10 }, { id:'s3', name:'Рапира', cost:400, dex:25 }
+    ],
+    armor: {
+        head: [{id:'h1', name:'Шапка', cost:30, hp:15}, {id:'h2', name:'Шлем', cost:100, hp:40}],
+        body: [{id:'b1', name:'Рубаха', cost:40, hp:25}, {id:'b2', name:'Латы', cost:350, hp:150}],
+        legs: [{id:'l1', name:'Штаны', cost:20, hp:10}, {id:'l2', name:'Поножи', cost:250, hp:80}]
+    }
+};
+
+let p = { 
+    name: "Герой", class: "warrior", gold: 100,
+    str: 0, dex: 0, luk: 0, points: 25, 
+    hp: 100, maxHp: 100, lvl: 1,
+    equiped: { weapon: null, head: null, body: null, legs: null }
+};
+
+let enemy = { name: "Враг", hp: 0, maxHp: 0, str: 2, isPlayer: false };
+let selection = { attack: null, block: null };
+let peer, conn, remoteTurn = null;
+
+// --- СИСТЕМА ---
+window.onload = () => {
+    const saved = localStorage.getItem('bk_save_v3');
+    if (saved) { p = JSON.parse(saved); showScreen('city-screen'); }
+    updateUI();
+};
+
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    updateUI();
+}
+
+function addStat(s) {
+    if (p.points > 0) { p[s]++; p.points--; updateUI(); }
+}
+
+function updateUI() {
+    let bHp = (p.equiped.head?.hp || 0) + (p.equiped.body?.hp || 0) + (p.equiped.legs?.hp || 0);
+    p.maxHp = 100 + (p.str * 10) + bHp + (p.class==='warrior'?50:0);
+    
+    const fields = { 'free-points': p.points, 'curr-free-points': p.points, 'str': p.str, 'curr-str': p.str, 'dex': p.dex, 'curr-dex': p.dex, 'luk': p.luk, 'curr-luk': p.luk, 'player-gold': p.gold };
+    for (let id in fields) if(document.getElementById(id)) document.getElementById(id).innerText = fields[id];
+
+    const info = document.getElementById('char-stats-display');
+    if(info) info.innerHTML = `<b>${p.name}</b> [${p.lvl} ур.]<br>HP: ${p.hp}/${p.maxHp}<br>Урон: ${5 + p.str + (p.equiped.weapon?.str||0)}`;
+}
+
+function startGame() {
+    p.name = document.getElementById('player-name-input').value || "Герой";
+    p.class = document.getElementById('player-class-select').value;
+    p.hp = p.maxHp;
+    showScreen('city-screen');
+    saveGame();
+}
+
+// --- МАГАЗИН ---
+function openShop() {
+    showScreen('shop-screen');
+    const list = document.getElementById('shop-items-list');
+    list.innerHTML = '';
+    const all = [...items.weapon, ...items.armor.head, ...items.armor.body, ...items.armor.legs];
+    all.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item-card';
+        div.innerHTML = `<span>${item.name} (${item.str?'+'+item.str+'👤':'+'+item.hp+'❤️'})</span><button onclick="buy('${item.id}')">${item.cost}💰</button>`;
+        list.appendChild(div);
+    });
+}
+
+function buy(id) {
+    let item = [...items.weapon, ...items.armor.head, ...items.armor.body, ...items.armor.legs].find(i => i.id === id);
+    if(p.gold >= item.cost) {
+        p.gold -= item.cost;
+        let cat = items.weapon.find(i=>i.id===id) ? 'weapon' : (items.armor.head.find(i=>i.id===id)?'head':(items.armor.body.find(i=>i.id===id)?'body':'legs'));
+        p.equiped[cat] = item;
+        updateUI();
+        alert("Экипировано!");
+    }
+}
+
+// --- СЕТЬ ---
+function initMultiplayer() {
+    showScreen('multiplayer-screen');
+    if (peer) return;
+    peer = new Peer();
+    peer.on('open', id => {
+        document.getElementById('peer-status').innerText = "Твой ID: " + id;
+        QRCode.toCanvas(document.getElementById('qrcode'), id);
+    });
+    peer.on('connection', c => { conn = c; setupConn(); });
+}
+
+function joinGame() {
+    conn = peer.connect(document.getElementById('join-id').value);
+    setupConn();
+}
+
+function setupConn() {
+    conn.on('open', () => {
+        log("Игрок подключился!", "#4a2");
+        showScreen('combat-screen');
+        enemy = { name: "Соперник", hp: 100, maxHp: 100, isPlayer: true };
+        conn.send({ type: 'INIT', name: p.name, hp: p.maxHp, str: p.str });
+    });
+    conn.on('data', data => {
+        if(data.type === 'INIT') { enemy.name = data.name; enemy.hp = data.hp; enemy.maxHp = data.hp; enemy.str = data.str; updateCombatUI(); }
+        if(data.type === 'TURN') { remoteTurn = data; checkPvP(); }
+    });
+}
+
+// --- БОЙ ---
+function startBattle(n, d) {
+    enemy = { name: n, hp: 30*d, maxHp: 30*d, str: 2*d, isPlayer: false, lvl: d };
+    p.hp = p.maxHp;
+    showScreen('combat-screen');
+    log(`Встречен ${n}!`, "#fff");
+    updateCombatUI();
+}
+
+function setZone(type, zone, btn) {
+    selection[type] = zone;
+    document.querySelectorAll('.' + (type==='attack'?'atk-z':'blk-z')).forEach(b => b.style.borderColor = '#555');
+    btn.style.borderColor = '#4a2';
+    if(selection.attack && selection.block) document.getElementById('turn-btn').disabled = false;
+}
+
+function confirmTurn() {
+    if(enemy.isPlayer) {
+        conn.send({ type: 'TURN', attack: selection.attack, block: selection.block });
+        document.getElementById('turn-btn').disabled = true;
+        log("Ожидание хода противника...", "#aaa");
+        checkPvP();
+    } else {
+        const zones = ['Голова', 'Корпус', 'Ноги'];
+        resolve(zones[Math.floor(Math.random()*3)], zones[Math.floor(Math.random()*3)]);
+    }
+}
+
+function checkPvP() {
+    if(selection.attack && remoteTurn) {
+        resolve(remoteTurn.attack, remoteTurn.block);
+        remoteTurn = null;
+        selection = { attack: null, block: null };
+        document.querySelectorAll('.atk-z, .blk-z').forEach(b => b.style.borderColor = '#555');
+    }
+}
+
+function resolve(eAtk, eBlk) {
+    log(`--- Раунд ---`, "#666");
+    // Вы бьете
+    if(selection.attack === eBlk) log(`Ваш удар в ${selection.attack} заблокирован!`, "#aaa");
+    else {
+        let d = 5 + p.str + (p.equiped.weapon?.str||0);
+        enemy.hp -= d; log(`Вы попали по ${enemy.name} на ${d}`, "#4a2");
+    }
+    // Вас бьют
+    if(eAtk === selection.block) log(`Вы заблокировали удар в ${eAtk}!`, "#4a2");
+    else {
+        let ed = 5 + enemy.str;
+        p.hp -= ed; log(`${enemy.name} ударил вас на ${ed}`, "#f44");
+    }
+    updateCombatUI();
+    if(enemy.hp <= 0 || p.hp <= 0) end(enemy.hp <= 0);
+}
+
+function end(win) {
+    alert(win ? "Победа!" : "Поражение...");
+    if(win && !enemy.isPlayer) { p.gold += enemy.lvl * 20; p.points += 1; }
+    p.hp = p.maxHp;
+    showScreen('city-screen');
+    saveGame();
+}
+
+function updateCombatUI() {
+    document.getElementById('p-hp-ui').innerText = `Вы: ${p.hp} HP`;
+    document.getElementById('e-hp-ui').innerText = `${enemy.name}: ${enemy.hp} HP`;
+}
+
+function log(m, c) {
+    const l = document.getElementById('game-log');
+    l.innerHTML += `<div style="color:${c}">${m}</div>`;
+    l.scrollTop = l.scrollHeight;
+}
+
+function saveGame() { localStorage.setItem('bk_save_v3', JSON.stringify(p)); }
+function resetSave() { localStorage.removeItem('bk_save_v3'); location.reload(); }
+</script>
+</body>
+</html>
