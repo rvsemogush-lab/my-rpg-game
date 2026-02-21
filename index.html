@@ -2,70 +2,67 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>БК: Наследие — Сетевая Битва</title>
+    <title>БК: Наследие</title>
     <script src="https://unpkg.com"></script>
     <style>
-        body { font-family: 'Courier New', monospace; background: #1a1a1a; color: #ccc; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .screen { display: none; width: 100%; max-width: 500px; border: 2px solid #444; padding: 20px; background: #222; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        body { font-family: sans-serif; background: #1a1a1a; color: #ccc; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .screen { display: none; width: 100%; max-width: 400px; border: 2px solid #444; padding: 20px; background: #222; }
         .active { display: block; }
-        .stat-row { margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
-        #game-log { height: 180px; border: 1px solid #555; overflow-y: auto; background: #000; padding: 10px; margin: 15px 0; font-size: 13px; color: #aaa; }
-        button { cursor: pointer; padding: 8px 12px; background: #333; color: #fff; border: 1px solid #555; margin-bottom: 5px; }
-        button:hover:not(:disabled) { background: #555; }
-        #qrcode-container { background:#fff; padding:10px; margin:10px auto; width:180px; height:180px; display:flex; align-items:center; justify-content:center; }
-        input { background: #000; color: #4a2; border: 1px solid #444; padding: 8px; width: 90%; margin-bottom: 10px; }
+        .stat-row { margin: 10px 0; display: flex; justify-content: space-between; }
+        #game-log { height: 150px; border: 1px solid #555; overflow-y: auto; background: #000; padding: 10px; margin: 10px 0; font-size: 12px; }
+        button { cursor: pointer; padding: 8px; background: #333; color: #fff; border: 1px solid #555; }
+        #qrcode-container img { border: 5px solid white; }
     </style>
 </head>
 <body>
 
     <div id="char-creation" class="screen active">
         <h2>⚔️ Новый Герой</h2>
-        <input type="text" id="player-name-input" placeholder="Имя..." maxlength="12">
-        <p>Очки: <b id="free-points">25</b></p>
-        <div class="stat-row">Сила: <span id="str">0</span> <button onclick="addStat('str')">+</button></div>
-        <div class="stat-row">Ловкость: <span id="dex">0</span> <button onclick="addStat('dex')">+</button></div>
-        <div class="stat-row">Удача: <span id="luk">0</span> <button onclick="addStat('luk')">+</button></div>
+        <input type="text" id="p-name" placeholder="Имя..." style="width:90%; padding:5px;">
+        <p>Очки: <b id="f-pts">25</b></p>
+        <div class="stat-row">Сила: <span id="s-str">0</span> <button onclick="addStat('str')">+</button></div>
+        <div class="stat-row">Ловкость: <span id="s-dex">0</span> <button onclick="addStat('dex')">+</button></div>
+        <div class="stat-row">Удача: <span id="s-luk">0</span> <button onclick="addStat('luk')">+</button></div>
         <button style="width:100%" onclick="startGame()">НАЧАТЬ</button>
     </div>
 
     <div id="city-screen" class="screen">
         <h2>🏰 Город</h2>
-        <button style="width:100%" onclick="initMultiplayer()">🌐 Сетевая игра</button>
-        <button style="width:100%" onclick="startBattle('Лес', 1)">🌲 В лес (PvE)</button>
-        <div id="char-info" style="margin-top:15px; border-left: 4px solid #4a2; padding-left:10px;"></div>
+        <button style="width:100%" onclick="initNet()">🌐 Сетевая игра</button>
+        <div id="c-info" style="margin-top:15px; color:#4a2;"></div>
     </div>
 
-    <div id="multiplayer-screen" class="screen">
-        <h2>🌐 Сетевой режим</h2>
-        <p id="peer-status">Генерация ID...</p>
+    <div id="net-screen" class="screen">
+        <h2>🌐 Сеть</h2>
+        <p id="p-status">Генерация ID...</p>
         <div id="qrcode-container"></div>
-        <input type="text" id="join-id" placeholder="ID друга">
-        <button onclick="joinGame()" style="width:100%">Подключиться</button>
-        <button style="width:100%; margin-top:10px;" onclick="showScreen('city-screen')">Назад</button>
+        <input type="text" id="peer-id-input" placeholder="ID друга" style="width:90%; margin-bottom:5px;">
+        <button onclick="joinNet()" style="width:100%">Подключиться</button>
+        <button onclick="showScreen('city-screen')" style="width:100%; margin-top:5px;">Назад</button>
     </div>
 
     <div id="combat-screen" class="screen">
-        <div style="display:flex; justify-content:space-between; font-weight:bold;">
-            <div id="p-hp-ui">Вы: 100</div>
-            <div id="e-hp-ui">Враг: 100</div>
+        <div style="display:flex; justify-content:space-between;">
+            <div id="p-hp">Вы: 100</div>
+            <div id="e-hp">Враг: 100</div>
         </div>
         <div id="game-log"></div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
-            <button onclick="setZone('attack','Голова')">Ат:Голова</button>
-            <button onclick="setZone('attack','Корпус')">Ат:Корпус</button>
-            <button onclick="setZone('attack','Ноги')">Ат:Ноги</button>
-            <button onclick="setZone('block','Голова')">Зщ:Голова</button>
-            <button onclick="setZone('block','Корпус')">Зщ:Корпус</button>
-            <button onclick="setZone('block','Ноги')">Зщ:Ноги</button>
+            <button onclick="setZ('atk','Голова')">А:Гол</button>
+            <button onclick="setZ('atk','Тело')">А:Тел</button>
+            <button onclick="setZ('atk','Ноги')">А:Ног</button>
+            <button onclick="setZ('blk','Голова')">З:Гол</button>
+            <button onclick="setZ('blk','Тело')">З:Тел</button>
+            <button onclick="setZ('blk','Ноги')">З:Ног</button>
         </div>
-        <button id="turn-btn" disabled style="width:100%; background:#4a2; margin-top:10px;" onclick="confirmTurn()">УДАРИТЬ</button>
+        <button id="hit-btn" disabled style="width:100%; background:#4a2; margin-top:10px;" onclick="doTurn()">УДАРИТЬ</button>
     </div>
 
 <script>
-let p = { name: "Герой", str: 0, dex: 0, luk: 0, points: 25, hp: 100, maxHp: 100 };
-let enemy = { name: "Враг", hp: 0, maxHp: 0, str: 2, isPlayer: false };
-let selection = { attack: null, block: null };
-let peer, conn, remoteTurn = null;
+let p = { name: "Герой", str: 0, dex: 0, luk: 0, pts: 25, hp: 100, max: 100 };
+let enemy = { name: "Враг", hp: 0, max: 0, str: 5 };
+let sel = { atk: null, blk: null };
+let peer, conn, rem = null;
 
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -74,106 +71,87 @@ function showScreen(id) {
 }
 
 function addStat(s) {
-    if (p.points > 0) { p[s]++; p.points--; updateUI(); }
+    if (p.pts > 0) { p[s]++; p.pts--; updateUI(); }
 }
 
 function updateUI() {
-    p.maxHp = 100 + (p.str * 10);
-    document.getElementById('free-points').innerText = p.points;
-    document.getElementById('str').innerText = p.str;
-    document.getElementById('dex').innerText = p.dex;
-    document.getElementById('luk').innerText = p.luk;
-    const info = document.getElementById('char-info');
-    if(info) info.innerHTML = `<b>${p.name}</b> | HP: ${p.hp}/${p.maxHp}`;
+    p.max = 100 + (p.str * 10);
+    document.getElementById('f-pts').innerText = p.pts;
+    document.getElementById('s-str').innerText = p.str;
+    document.getElementById('s-dex').innerText = p.dex;
+    document.getElementById('s-luk').innerText = p.luk;
+    if(document.getElementById('c-info')) document.getElementById('c-info').innerText = p.name + " | HP: " + p.hp + "/" + p.max;
 }
 
 function startGame() {
-    p.name = document.getElementById('player-name-input').value || "Герой";
-    p.hp = p.maxHp;
+    p.name = document.getElementById('p-name').value || "Герой";
+    p.hp = p.max;
     showScreen('city-screen');
 }
 
-function initMultiplayer() {
-    showScreen('multiplayer-screen');
+function initNet() {
+    showScreen('net-screen');
     if (peer) return;
     peer = new Peer();
-    peer.on('open', id => {
-        document.getElementById('peer-status').innerText = "ID: " + id;
-        document.getElementById('qrcode-container').innerHTML = `<img src="https://api.qrserver.com{id}">`;
+    peer.on('open', (id) => {
+        document.getElementById('p-status').innerText = "Твой ID: " + id;
+        document.getElementById('qrcode-container').innerHTML = '<img src="https://api.qrserver.com' + id + '">';
     });
-    peer.on('connection', c => { conn = c; setupConn(); });
+    peer.on('connection', (c) => { conn = c; setupConn(); });
 }
 
-function joinGame() {
-    const id = document.getElementById('join-id').value;
+function joinNet() {
+    const id = document.getElementById('peer-id-input').value;
     if(id) { conn = peer.connect(id); setupConn(); }
 }
 
 function setupConn() {
     conn.on('open', () => {
         showScreen('combat-screen');
-        enemy = { name: "Соперник", hp: 100, maxHp: 100, isPlayer: true, str: 5 };
-        conn.send({ type: 'INIT', name: p.name, hp: p.maxHp, str: p.str });
+        enemy.name = "Соперник";
+        conn.send({ t: 'INIT', n: p.name, h: p.max, s: p.str });
     });
-    conn.on('data', data => {
-        if(data.type === 'INIT') { enemy.name = data.name; enemy.hp = data.hp; enemy.maxHp = data.hp; enemy.str = data.str; updateCombatUI(); }
-        if(data.type === 'TURN') { remoteTurn = data; checkPvP(); }
+    conn.on('data', (d) => {
+        if(d.t === 'INIT') { enemy.name = d.n; enemy.hp = d.h; enemy.max = d.h; enemy.str = d.s; updC(); }
+        if(d.t === 'TURN') { rem = d; checkPvP(); }
     });
 }
 
-function startBattle(n, d) {
-    enemy = { name: n, hp: 50*d, maxHp: 50*d, str: 3*d, isPlayer: false };
-    p.hp = p.maxHp;
-    showScreen('combat-screen');
-    log("Бой начался!", "#fff");
-    updateCombatUI();
+function setZ(t, z) {
+    sel[t] = z;
+    if(sel.atk && sel.blk) document.getElementById('hit-btn').disabled = false;
 }
 
-function setZone(t, z) {
-    selection[t] = z;
-    if(selection.attack && selection.block) document.getElementById('turn-btn').disabled = false;
-}
-
-function confirmTurn() {
-    if(enemy.isPlayer) {
-        conn.send({ type: 'TURN', attack: selection.attack, block: selection.block });
-        document.getElementById('turn-btn').disabled = true;
-        log("Ожидание хода...", "#aaa");
-        checkPvP();
-    } else {
-        const z = ['Голова', 'Корпус', 'Ноги'];
-        resolve(z[Math.floor(Math.random()*3)], z[Math.floor(Math.random()*3)]);
-    }
+function doTurn() {
+    conn.send({ t: 'TURN', a: sel.atk, b: sel.blk });
+    document.getElementById('hit-btn').disabled = true;
+    log("Ждем противника...", "#aaa");
+    checkPvP();
 }
 
 function checkPvP() {
-    if(selection.attack && remoteTurn) {
-        resolve(remoteTurn.attack, remoteTurn.block);
-        remoteTurn = null; selection = { attack: null, block: null };
-        document.getElementById('turn-btn').disabled = true;
+    if(sel.atk && rem) {
+        log("--- Раунд ---", "#666");
+        if(sel.atk === rem.b) log("Ваш удар заблокирован!", "#aaa");
+        else { let d = 5 + p.str; enemy.hp -= d; log("Вы нанесли " + d, "#4a2"); }
+        
+        if(rem.a === sel.blk) log("Вы заблокировали удар!", "#4a2");
+        else { let ed = 5 + enemy.str; p.hp -= ed; log("Вам нанесли " + ed, "#f44"); }
+        
+        updC();
+        rem = null; sel = { atk: null, blk: null };
+        if(p.hp <= 0 || enemy.hp <= 0) { alert("Бой окончен!"); location.reload(); }
     }
 }
 
-function resolve(eAtk, eBlk) {
-    log(`--- Ход ---`, "#666");
-    if(selection.attack === eBlk) log("Удар заблокирован!", "#aaa");
-    else { let d = 5+p.str; enemy.hp -= d; log(`Вы нанесли ${d}`, "#4a2"); }
-    
-    if(eAtk === selection.block) log("Блок!", "#4a2");
-    else { let ed = 5+enemy.str; p.hp -= ed; log(`Вам нанесли ${ed}`, "#f44"); }
-    
-    updateCombatUI();
-    if(p.hp <= 0 || enemy.hp <= 0) { alert("Финал боя!"); location.reload(); }
-}
-
-function updateCombatUI() {
-    document.getElementById('p-hp-ui').innerText = `Вы: ${p.hp}`;
-    document.getElementById('e-hp-ui').innerText = `${enemy.name}: ${enemy.hp}`;
+function updC() {
+    document.getElementById('p-hp').innerText = "Вы: " + p.hp;
+    document.getElementById('e-hp').innerText = enemy.name + ": " + enemy.hp;
 }
 
 function log(m, c) {
     const l = document.getElementById('game-log');
-    l.innerHTML += `<div style="color:${c}">${m}</div>`;
+    l.innerHTML += '<div style="color:' + c + '">' + m + '</div>';
     l.scrollTop = l.scrollHeight;
 }
 </script>
