@@ -2,10 +2,11 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>БК: Наследие — Сетевая Битва</title>
+    
     <!-- Библиотеки для сети и QR -->
-    <script src="https://unpkg.com"></script>
-    <script src="https://cdn.jsdelivr.net"></script>
+<script src="https://cdnjs.cloudflare.com"></script>
+<script src="https://cdnjs.cloudflare.com"></script>
+<title>БК: Наследие — Сетевая Битва</title>
     <style>
         body { font-family: 'Courier New', monospace; background: #1a1a1a; color: #ccc; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .screen { display: none; width: 100%; max-width: 500px; border: 2px solid #444; padding: 20px; background: #222; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
@@ -203,8 +204,8 @@ function initMultiplayer() {
     peer = new Peer();
     peer.on('open', id => {
         document.getElementById('peer-status').innerText = "Твой ID: " + id;
-        QRCode.toCanvas(document.getElementById('qrcode'), id);
-    });
+        const qrImg = `https://api.qrserver.com{id}`;
+        document.getElementById('qrcode-container').innerHTML = `<img src="${qrImg}">`;
     peer.on('connection', c => { conn = c; setupConn(); });
 }
 
