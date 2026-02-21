@@ -2,49 +2,52 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>БК: Наследие</title>
-    <script src="https://unpkg.com"></script>
+    <title>БК: Наследие (Автономная версия)</title>
+    <!-- Мы загрузим PeerJS альтернативным способом через другой сервис (Cloudflare) -->
+    <script src="https://cdnjs.cloudflare.com"></script>
     <style>
         body { font-family: sans-serif; background: #1a1a1a; color: #ccc; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .screen { display: none; width: 100%; max-width: 400px; border: 2px solid #444; padding: 20px; background: #222; }
         .active { display: block; }
         .stat-row { margin: 10px 0; display: flex; justify-content: space-between; }
         #game-log { height: 150px; border: 1px solid #555; overflow-y: auto; background: #000; padding: 10px; margin: 10px 0; font-size: 12px; }
-        button { cursor: pointer; padding: 8px; background: #333; color: #fff; border: 1px solid #555; }
-        #qrcode-container img { border: 5px solid white; }
+        button { cursor: pointer; padding: 8px; background: #333; color: #fff; border: 1px solid #555; margin-bottom: 5px; }
+        button:hover { background: #444; }
+        #qrcode-container { background: white; padding: 5px; width: 150px; height: 150px; margin: 10px auto; }
+        input { background: #000; color: #4a2; border: 1px solid #444; padding: 8px; width: 90%; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
     <div id="char-creation" class="screen active">
         <h2>⚔️ Новый Герой</h2>
-        <input type="text" id="p-name" placeholder="Имя..." style="width:90%; padding:5px;">
-        <p>Очки: <b id="f-pts">25</b></p>
+        <input type="text" id="p-name" placeholder="Имя героя..." maxlength="12">
+        <p>Свободные очки: <b id="f-pts">25</b></p>
         <div class="stat-row">Сила: <span id="s-str">0</span> <button onclick="addStat('str')">+</button></div>
         <div class="stat-row">Ловкость: <span id="s-dex">0</span> <button onclick="addStat('dex')">+</button></div>
         <div class="stat-row">Удача: <span id="s-luk">0</span> <button onclick="addStat('luk')">+</button></div>
-        <button style="width:100%" onclick="startGame()">НАЧАТЬ</button>
+        <button style="width:100%; background: #4a2;" onclick="startGame()">НАЧАТЬ ИГРУ</button>
     </div>
 
     <div id="city-screen" class="screen">
         <h2>🏰 Город</h2>
-        <button style="width:100%" onclick="initNet()">🌐 Сетевая игра</button>
-        <div id="c-info" style="margin-top:15px; color:#4a2;"></div>
+        <button style="width:100%" onclick="initNet()">🌐 Сетевой режим (PvP)</button>
+        <div id="c-info" style="margin-top:20px; border-left: 3px solid #4a2; padding-left: 10px;"></div>
     </div>
 
     <div id="net-screen" class="screen">
-        <h2>🌐 Сеть</h2>
-        <p id="p-status">Генерация ID...</p>
+        <h2>🌐 Сетевая игра</h2>
+        <p id="p-status" style="font-size: 12px;">Подключение к серверу...</p>
         <div id="qrcode-container"></div>
-        <input type="text" id="peer-id-input" placeholder="ID друга" style="width:90%; margin-bottom:5px;">
-        <button onclick="joinNet()" style="width:100%">Подключиться</button>
-        <button onclick="showScreen('city-screen')" style="width:100%; margin-top:5px;">Назад</button>
+        <input type="text" id="peer-id-input" placeholder="Вставь ID друга">
+        <button onclick="joinNet()" style="width:100%; background: #2a5;">Подключиться</button>
+        <button onclick="showScreen('city-screen')" style="width:100%">Назад</button>
     </div>
 
     <div id="combat-screen" class="screen">
-        <div style="display:flex; justify-content:space-between;">
-            <div id="p-hp">Вы: 100</div>
-            <div id="e-hp">Враг: 100</div>
+        <div style="display:flex; justify-content:space-between; font-weight: bold;">
+            <div id="p-hp" style="color: #4a2;">Вы: 100</div>
+            <div id="e-hp" style="color: #f44;">Враг: 100</div>
         </div>
         <div id="game-log"></div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
@@ -55,15 +58,17 @@
             <button onclick="setZ('blk','Тело')">З:Тел</button>
             <button onclick="setZ('blk','Ноги')">З:Ног</button>
         </div>
-        <button id="hit-btn" disabled style="width:100%; background:#4a2; margin-top:10px;" onclick="doTurn()">УДАРИТЬ</button>
+        <button id="hit-btn" disabled style="width:100%; height: 50px; background:#4a2; margin-top:10px;" onclick="doTurn()">УДАРИТЬ</button>
     </div>
 
 <script>
+// Основные переменные
 let p = { name: "Герой", str: 0, dex: 0, luk: 0, pts: 25, hp: 100, max: 100 };
 let enemy = { name: "Враг", hp: 0, max: 0, str: 5 };
 let sel = { atk: null, blk: null };
 let peer, conn, rem = null;
 
+// Функции интерфейса
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
@@ -80,7 +85,9 @@ function updateUI() {
     document.getElementById('s-str').innerText = p.str;
     document.getElementById('s-dex').innerText = p.dex;
     document.getElementById('s-luk').innerText = p.luk;
-    if(document.getElementById('c-info')) document.getElementById('c-info').innerText = p.name + " | HP: " + p.hp + "/" + p.max;
+    if(document.getElementById('c-info')) {
+        document.getElementById('c-info').innerHTML = `<b>${p.name}</b><br>Здоровье: ${p.hp}/${p.max}<br>Сила: ${p.str}`;
+    }
 }
 
 function startGame() {
@@ -89,20 +96,40 @@ function startGame() {
     showScreen('city-screen');
 }
 
+// Сетевая логика
 function initNet() {
     showScreen('net-screen');
     if (peer) return;
-    peer = new Peer();
-    peer.on('open', (id) => {
-        document.getElementById('p-status').innerText = "Твой ID: " + id;
-        document.getElementById('qrcode-container').innerHTML = '<img src="https://api.qrserver.com' + id + '">';
-    });
-    peer.on('connection', (c) => { conn = c; setupConn(); });
+
+    // Пробуем создать объект Peer. Если библиотеки нет - выскочит ошибка.
+    try {
+        peer = new Peer();
+        
+        peer.on('open', (id) => {
+            document.getElementById('p-status').innerText = "Твой ID: " + id;
+            document.getElementById('qrcode-container').innerHTML = 
+                '<img src="https://api.qrserver.com' + id + '" width="150">';
+        });
+
+        peer.on('connection', (c) => {
+            conn = c;
+            setupConn();
+        });
+
+        peer.on('error', (err) => {
+            alert("Ошибка сети: " + err.type);
+        });
+    } catch (e) {
+        alert("Критическая ошибка: Библиотека PeerJS не загружена. Проверь интернет или блокировщики рекламы.");
+    }
 }
 
 function joinNet() {
     const id = document.getElementById('peer-id-input').value;
-    if(id) { conn = peer.connect(id); setupConn(); }
+    if(id && peer) {
+        conn = peer.connect(id);
+        setupConn();
+    }
 }
 
 function setupConn() {
@@ -110,37 +137,70 @@ function setupConn() {
         showScreen('combat-screen');
         enemy.name = "Соперник";
         conn.send({ t: 'INIT', n: p.name, h: p.max, s: p.str });
+        log("Соединение установлено! Выбери зоны атаки и защиты.", "#4a2");
     });
+    
     conn.on('data', (d) => {
-        if(d.t === 'INIT') { enemy.name = d.n; enemy.hp = d.h; enemy.max = d.h; enemy.str = d.s; updC(); }
-        if(d.t === 'TURN') { rem = d; checkPvP(); }
+        if(d.t === 'INIT') {
+            enemy.name = d.n; enemy.hp = d.h; enemy.max = d.h; enemy.str = d.s;
+            updC();
+        }
+        if(d.t === 'TURN') {
+            rem = d;
+            checkPvP();
+        }
     });
 }
 
+// Логика боя
 function setZ(t, z) {
     sel[t] = z;
-    if(sel.atk && sel.blk) document.getElementById('hit-btn').disabled = false;
+    if(sel.atk && sel.blk) {
+        document.getElementById('hit-btn').disabled = false;
+        document.getElementById('hit-btn').innerText = "ПОДТВЕРДИТЬ ХОД";
+    }
 }
 
 function doTurn() {
+    if(!conn) return;
     conn.send({ t: 'TURN', a: sel.atk, b: sel.blk });
     document.getElementById('hit-btn').disabled = true;
-    log("Ждем противника...", "#aaa");
+    document.getElementById('hit-btn').innerText = "ОЖИДАНИЕ...";
+    log("Ход отправлен...", "#aaa");
     checkPvP();
 }
 
 function checkPvP() {
     if(sel.atk && rem) {
-        log("--- Раунд ---", "#666");
-        if(sel.atk === rem.b) log("Ваш удар заблокирован!", "#aaa");
-        else { let d = 5 + p.str; enemy.hp -= d; log("Вы нанесли " + d, "#4a2"); }
+        log("--- РЕЗУЛЬТАТ РАУНДА ---", "#fff");
         
-        if(rem.a === sel.blk) log("Вы заблокировали удар!", "#4a2");
-        else { let ed = 5 + enemy.str; p.hp -= ed; log("Вам нанесли " + ed, "#f44"); }
+        // Ты бьешь
+        if(sel.atk === rem.b) {
+            log(`Твой удар в ${sel.atk} заблокирован!`, "#aaa");
+        } else {
+            let damage = 10 + p.str;
+            enemy.hp -= damage;
+            log(`Ты попал в ${sel.atk}! Нанесено ${damage} урона.`, "#4a2");
+        }
+        
+        // Тебя бьют
+        if(rem.a === sel.blk) {
+            log(`Ты заблокировал удар в ${sel.blk}!`, "#4a2");
+        } else {
+            let eDamage = 10 + enemy.str;
+            p.hp -= eDamage;
+            log(`Противник попал в ${rem.a}! Тебе нанесено ${eDamage} урона.`, "#f44");
+        }
         
         updC();
-        rem = null; sel = { atk: null, blk: null };
-        if(p.hp <= 0 || enemy.hp <= 0) { alert("Бой окончен!"); location.reload(); }
+        rem = null; 
+        sel = { atk: null, blk: null };
+        document.getElementById('hit-btn').innerText = "УДАРИТЬ";
+        
+        if(p.hp <= 0 || enemy.hp <= 0) {
+            alert(p.hp > 0 ? "ПОБЕДА!" : "ВЫ ПРОИГРАЛИ");
+            location.reload();
+        }
     }
 }
 
