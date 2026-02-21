@@ -3,19 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>БК: Наследие — Сетевая Битва</title>
-    <!-- Библиотеки подключаем в самом верху -->
     <script src="https://unpkg.com"></script>
     <style>
         body { font-family: 'Courier New', monospace; background: #1a1a1a; color: #ccc; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .screen { display: none; width: 100%; max-width: 500px; border: 2px solid #444; padding: 20px; background: #222; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .screen { display: none; width: 100%; max-width: 500px; border: 2px solid #444; padding: 20px; background: #222; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .active { display: block; }
         .stat-row { margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
         #game-log { height: 180px; border: 1px solid #555; overflow-y: auto; background: #000; padding: 10px; margin: 15px 0; font-size: 13px; color: #aaa; }
         button { cursor: pointer; padding: 8px 12px; background: #333; color: #fff; border: 1px solid #555; margin-bottom: 5px; }
         button:hover:not(:disabled) { background: #555; }
-        .location-btn { width: 100%; text-align: left; }
-        #char-stats-display { background: #2a2a2a; padding: 10px; border-radius: 4px; margin-top: 15px; font-size: 0.85em; border-left: 4px solid #4a2; }
-        #qrcode-container { background:#fff; padding:10px; margin:10px auto; width:200px; height:200px; display: flex; align-items: center; justify-content: center; }
+        #qrcode-container { background:#fff; padding:10px; margin:10px auto; width:180px; height:180px; display:flex; align-items:center; justify-content:center; }
         input { background: #000; color: #4a2; border: 1px solid #444; padding: 8px; width: 90%; margin-bottom: 10px; }
     </style>
 </head>
@@ -23,39 +20,32 @@
 
     <div id="char-creation" class="screen active">
         <h2>⚔️ Новый Герой</h2>
-        <input type="text" id="player-name-input" placeholder="Имя героя..." maxlength="12">
+        <input type="text" id="player-name-input" placeholder="Имя..." maxlength="12">
         <p>Очки: <b id="free-points">25</b></p>
         <div class="stat-row">Сила: <span id="str">0</span> <button onclick="addStat('str')">+</button></div>
         <div class="stat-row">Ловкость: <span id="dex">0</span> <button onclick="addStat('dex')">+</button></div>
         <div class="stat-row">Удача: <span id="luk">0</span> <button onclick="addStat('luk')">+</button></div>
-        <button style="width:100%" onclick="startGame()">НАЧАТЬ ПУТЬ</button>
+        <button style="width:100%" onclick="startGame()">НАЧАТЬ</button>
     </div>
 
     <div id="city-screen" class="screen">
         <h2>🏰 Город</h2>
-        <button class="location-btn" onclick="initMultiplayer()">🌐 Сетевая игра (PvP)</button>
-        <button class="location-btn" onclick="showScreen('map-screen')">🗺️ Карта (PvE)</button>
-        <div id="char-stats-display"></div>
-        <button onclick="resetSave()" style="color:red; font-size:10px; margin-top:20px; border:none; background:none;">Сброс</button>
+        <button style="width:100%" onclick="initMultiplayer()">🌐 Сетевая игра</button>
+        <button style="width:100%" onclick="startBattle('Лес', 1)">🌲 В лес (PvE)</button>
+        <div id="char-info" style="margin-top:15px; border-left: 4px solid #4a2; padding-left:10px;"></div>
     </div>
 
     <div id="multiplayer-screen" class="screen">
         <h2>🌐 Сетевой режим</h2>
         <p id="peer-status">Генерация ID...</p>
         <div id="qrcode-container"></div>
-        <input type="text" id="join-id" placeholder="ID противника">
+        <input type="text" id="join-id" placeholder="ID друга">
         <button onclick="joinGame()" style="width:100%">Подключиться</button>
         <button style="width:100%; margin-top:10px;" onclick="showScreen('city-screen')">Назад</button>
     </div>
 
-    <div id="map-screen" class="screen">
-        <h2>🗺️ Карта</h2>
-        <button class="location-btn" onclick="startBattle('Лес', 1)">🌲 Лес</button>
-        <button style="width:100%" onclick="showScreen('city-screen')">Назад</button>
-    </div>
-
     <div id="combat-screen" class="screen">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; font-weight:bold;">
             <div id="p-hp-ui">Вы: 100</div>
             <div id="e-hp-ui">Враг: 100</div>
         </div>
@@ -72,7 +62,7 @@
     </div>
 
 <script>
-let p = { name: "Герой", str: 0, dex: 0, luk: 0, points: 25, hp: 100, maxHp: 100, gold: 0 };
+let p = { name: "Герой", str: 0, dex: 0, luk: 0, points: 25, hp: 100, maxHp: 100 };
 let enemy = { name: "Враг", hp: 0, maxHp: 0, str: 2, isPlayer: false };
 let selection = { attack: null, block: null };
 let peer, conn, remoteTurn = null;
@@ -93,8 +83,8 @@ function updateUI() {
     document.getElementById('str').innerText = p.str;
     document.getElementById('dex').innerText = p.dex;
     document.getElementById('luk').innerText = p.luk;
-    const info = document.getElementById('char-stats-display');
-    if(info) info.innerHTML = `<b>${p.name}</b><br>HP: ${p.hp}/${p.maxHp} | Сила: ${p.str}`;
+    const info = document.getElementById('char-info');
+    if(info) info.innerHTML = `<b>${p.name}</b> | HP: ${p.hp}/${p.maxHp}`;
 }
 
 function startGame() {
@@ -108,11 +98,10 @@ function initMultiplayer() {
     if (peer) return;
     peer = new Peer();
     peer.on('open', id => {
-        document.getElementById('peer-status').innerText = "Твой ID: " + id;
+        document.getElementById('peer-status').innerText = "ID: " + id;
         document.getElementById('qrcode-container').innerHTML = `<img src="https://api.qrserver.com{id}">`;
     });
     peer.on('connection', c => { conn = c; setupConn(); });
-    peer.on('error', e => alert("Ошибка сети: " + e.type));
 }
 
 function joinGame() {
@@ -149,7 +138,7 @@ function confirmTurn() {
     if(enemy.isPlayer) {
         conn.send({ type: 'TURN', attack: selection.attack, block: selection.block });
         document.getElementById('turn-btn').disabled = true;
-        log("Ждем противника...", "#aaa");
+        log("Ожидание хода...", "#aaa");
         checkPvP();
     } else {
         const z = ['Голова', 'Корпус', 'Ноги'];
@@ -166,15 +155,15 @@ function checkPvP() {
 }
 
 function resolve(eAtk, eBlk) {
-    log(`--- Раунд ---`, "#666");
-    if(selection.attack === eBlk) log("Ваш удар заблокирован!", "#aaa");
-    else { let d = 5+p.str; enemy.hp -= d; log(`Вы нанесли ${d} урона`, "#4a2"); }
+    log(`--- Ход ---`, "#666");
+    if(selection.attack === eBlk) log("Удар заблокирован!", "#aaa");
+    else { let d = 5+p.str; enemy.hp -= d; log(`Вы нанесли ${d}`, "#4a2"); }
     
-    if(eAtk === selection.block) log("Вы заблокировали удар!", "#4a2");
-    else { let ed = 5+enemy.str; p.hp -= ed; log(`Вам нанесли ${ed} урона`, "#f44"); }
+    if(eAtk === selection.block) log("Блок!", "#4a2");
+    else { let ed = 5+enemy.str; p.hp -= ed; log(`Вам нанесли ${ed}`, "#f44"); }
     
     updateCombatUI();
-    if(p.hp <= 0 || enemy.hp <= 0) { alert(p.hp > 0 ? "Победа!" : "Поражение"); location.reload(); }
+    if(p.hp <= 0 || enemy.hp <= 0) { alert("Финал боя!"); location.reload(); }
 }
 
 function updateCombatUI() {
@@ -187,8 +176,6 @@ function log(m, c) {
     l.innerHTML += `<div style="color:${c}">${m}</div>`;
     l.scrollTop = l.scrollHeight;
 }
-
-function resetSave() { localStorage.clear(); location.reload(); }
 </script>
 </body>
 </html>
